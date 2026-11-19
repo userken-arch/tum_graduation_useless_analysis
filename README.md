@@ -7,7 +7,10 @@
 [![Graduates](https://img.shields.io/badge/Exact_Graduates-3%2C281_Total-red.svg)](#)
 [![License](https://img.shields.io/badge/License-MIT-lightgrey.svg)](#)
 
-> *"Ahead of our graduation ceremony at the Technical University of Mombasa (TUM), I wanted to understand the full flow of the event: how the day is structured, when each school and level of study is called, and the exact moment graduates flip their tassels. Instead of waiting around for the printed booklet, I decided to analyze the livestream recording as a simple data project."*
+> *"My mum kept asking me how the graduation ceremony order would be. I honestly didn't know—I've never attended one before. I figured I could just watch the recording of last year's proceedings, but when I opened it: damn, nearly 4 hours long (13,528 seconds)? But then I realized: there's a transcript. I bet I can pull that transcript from YouTube.*  
+> *I didn't think I'd have to download the whole page; I just wanted to make a clean API call. But the endpoint wouldn't give me the subtitles due to rate limits (HTTP 429). So I dispatched an AI agent inside a browser sandbox to extract the raw transcript, and used agentic coding tools to parse and map the timeline.*  
+> *The rest was history—backed up by meticulous human observation: I cross-referenced the video against every single timestamp, confirmed the deans' calls, verified the spoken cues, and checked the exact second of the tassel flip so the numbers are accurate to the teeth."*  
+> — **P.S. Built with agentic coding tools & verified by human eyes.**
 
 ---
 
