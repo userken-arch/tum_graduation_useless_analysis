@@ -87,10 +87,10 @@ git clone https://github.com/userken-arch/tum_graduation_useless_analysis.git
 cd tum_graduation_useless_analysis
 
 # Print the calibrated chronological event table
-python analyze_graduation.py
+python3 analyze_graduation.py
 
 # Or export to structured JSON
-python analyze_graduation.py --json > ceremony_timeline.json
+python3 analyze_graduation.py --json > ceremony_timeline.json
 ```
 
 ---
