@@ -7,6 +7,10 @@
 [![Graduates](https://img.shields.io/badge/Exact_Graduates-3%2C281_Total-red.svg)](#)
 [![License](https://img.shields.io/badge/License-MIT-lightgrey.svg)](#)
 
+<p align="center">
+  <img src="graduation_workspace.jpg" alt="TUM Graduation Analysis Workspace" width="750" />
+</p>
+
 > *"My mum kept asking me how the graduation ceremony order would be. I honestly didn't know—I've never attended one before. I figured I could just watch the recording of last year's proceedings, but when I opened it: damn, nearly 4 hours long (13,528 seconds)? But then I realized: there's a transcript. I bet I can pull that transcript from YouTube.*  
 > *I didn't think I'd have to download the whole page; I just wanted to make a clean API call. But the endpoint wouldn't give me the subtitles due to rate limits (HTTP 429). So I dispatched an AI agent inside a browser sandbox to extract the raw transcript, and used agentic coding tools to parse and map the timeline.*  
 > *I inspected the code functions myself to verify the extraction logic and make sure I wasn't getting hallucinated transcripts. Then came the human observation: I cross-referenced the video against every single timestamp, confirmed the deans' calls, verified the spoken cues, and checked the exact second of the tassel flip so the numbers are accurate to the teeth."*  
