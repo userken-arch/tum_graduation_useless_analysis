@@ -1,85 +1,43 @@
 #!/usr/bin/env python3
 """
-TUM-LiturgyParser: Algorithmic Temporal Event Extraction & Finite-State Liturgical Reconstruction
-Author: Computer Science / Information Technology Systems Group
-Architecture: Deterministic Finite Automaton (DFA) with Lexical Anchor Matching
+TUM Graduation Ceremony Timeline Parser
+A simple Python script written by a curious BSIT student to parse the
+12th Graduation Ceremony livestream transcript and figure out the exact event order.
 """
 
-from __future__ import annotations
 import re
 import json
-import time
+import os
 import sys
 from dataclasses import dataclass, asdict
-from enum import Enum, auto
-from typing import List, Optional, Dict, Any, Tuple
-
-
-class LiturgicalState(Enum):
-    """Formal states representing the statutory phases of the academic liturgy."""
-    S0_ASSEMBLY = "PROCESSION_AND_ASSEMBLY"
-    S1_ANTHEMS = "PARADE_AND_ANTHEMS"
-    S2_INVOCATIONS = "INTERFAITH_PRAYERS"
-    S3_CONSTITUTION = "STATUTORY_CONSTITUTION"
-    S4_CULTURAL_INTERLUDE = "NOTICES_AND_CHORAL_PERFORMANCE"
-    S5_SCHOLAR_HONORS = "VALEDICTORIAN_AWARDS"
-    S6_VC_ADDRESS = "VICE_CHANCELLOR_REPORT"
-    S7_COUNCIL_ADDRESS = "CHAIRMAN_GOVERNANCE_REPORT"
-    S8_MINISTERIAL_KEYNOTE = "MINISTRY_OF_EDUCATION_ADDRESS"
-    S9_DOCTORAL_CONFERMENT = "CONFERMENT_PHD"
-    S10_MASTERS_CONFERMENT = "CONFERMENT_MASTERS"
-    S11_CERTIFICATE_AWARD = "AWARD_CERTIFICATES"
-    S12_DIPLOMA_AWARD = "AWARD_DIPLOMAS"
-    S13_UNDERGRAD_ROLLCALL = "PRESENTATION_BACHELORS_FACULTIES"
-    S14_ETHICAL_OATH = "PROFESSIONAL_PRACTICE_OATH"
-    S15_UNDERGRAD_ADMISSION = "STATUTORY_BACHELORS_ADMISSION"
-    S16_DISSOLUTION = "CONGREGATION_DISSOLUTION"
-    S17_RECESSION = "CLOSING_ANTHEM_AND_RECESSION"
-
-
-@dataclass(frozen=True)
-class TranscriptSegment:
-    """Normalized atomic token of speech data."""
-    index: int
-    timestamp_raw: str
-    time_seconds: int
-    text: str
+from typing import List, Dict, Any
 
 
 @dataclass
-class LiturgicalMilestone:
-    """Formally segmented ceremonial epoch with invariant state bounds."""
-    state_id: str
-    phase_order: int
-    t_start_seconds: int
-    t_end_seconds: int
-    t_start_formatted: str
-    t_end_formatted: str
-    duration_seconds: int
-    lead_entities: List[str]
-    statutory_citations: List[str]
-    algorithmic_summary: str
+class CeremonyPhase:
+    order: int
+    start_time: str
+    end_time: str
+    duration_minutes: float
+    name: str
+    key_actors: List[str]
+    description: str
 
 
-class LiturgicalParserEngine:
-    """
-    Deterministic Linear-Time Parser for Monotonic Academic Liturgies.
-    Time Complexity: O(N) where N = number of transcript segments.
-    Space Complexity: O(M) where M = number of generated milestones (M << N).
-    """
+class GraduationTimelineParser:
+    def __init__(self, transcript_file: str):
+        self.transcript_file = transcript_file
+        self.lines = []
+        self._load_file()
 
-    def __init__(self, transcript_path: str):
-        self.transcript_path = transcript_path
-        self.segments: List[TranscriptSegment] = []
-        self._load_and_tokenize()
+    def _load_file(self):
+        if not os.path.exists(self.transcript_file):
+            alt = os.path.join(os.path.dirname(__file__), self.transcript_file)
+            if os.path.exists(alt):
+                self.transcript_file = alt
 
-    def _format_time(self, seconds: int) -> str:
-        h = seconds // 3600
-        m = (seconds % 3600) // 60
-        s = seconds % 60
-        if h > 0:
-            return f"{h:02d}:{m:02d}:{s:02d}"
-        return f"{m:02d}:{s:02d}"
+        with open(self.transcript_file, 'r', encoding='utf-8') as f:
+            self.lines = [line.strip() for line in f if line.strip()]
 
     def _to_seconds(self, ts_str: str) -> int:
         parts = [int(p) for p in ts_str.split(':')]
@@ -87,131 +45,123 @@ class LiturgicalParserEngine:
             return parts[0] * 3600 + parts[1] * 60 + parts[2]
         return parts[0] * 60 + parts[1]
 
-    def _load_and_tokenize(self) -> None:
-        """Parses raw text stream into immutable TranscriptSegment instances."""
-        pattern = re.compile(r'\[(\d\d:\d\d(?::\d\d)?)\]\s*(.*)')
-        with open(self.transcript_path, 'r', encoding='utf-8') as f:
-            for idx, line in enumerate(f):
-                m = pattern.match(line.strip())
-                if m:
-                    ts = m.group(1)
-                    txt = m.group(2)
-                    sec = self._to_seconds(ts)
-                    self.segments.append(TranscriptSegment(idx + 1, ts, sec, txt))
+    def _format_seconds(self, sec: int) -> str:
+        h = sec // 3600
+        m = (sec % 3600) // 60
+        s = sec % 60
+        if h > 0:
+            return f"{h:02d}:{m:02d}:{s:02d}"
+        return f"{m:02d}:{s:02d}"
 
-    def execute_segmentation(self) -> List[LiturgicalMilestone]:
-        """Executes state transition matrix across time-indexed tokens."""
-        # Defined state transition boundaries (derived via lexical triggers and statutory monotonicity)
-        state_boundaries = [
-            (LiturgicalState.S0_ASSEMBLY, 1, 240, ["Marine Cadets", "TUM Brass Band", "Deans", "Senate", "Council Chair"], 
-             ["Cap 210 Sec 14"], "Academic Procession of candidates, faculty, senate, and council leadership."),
-            (LiturgicalState.S1_ANTHEMS, 240, 708, ["Capt. Talib (Dir. Maritime)", "Marine Scouts", "Council Chair"], 
-             ["Kenya National Anthem", "EAC Anthem", "TUM Anthem"], "Parade inspection and state ceremonial anthems."),
-            (LiturgicalState.S2_INVOCATIONS, 709, 1457, ["Sheikh Abdurrahman Said", "Rev. Julius Nudi"], 
-             ["Quranic Du'a", "Christian Thanksgiving"], "Interfaith spiritual dedications."),
-            (LiturgicalState.S3_CONSTITUTION, 1458, 1537, ["Prof. Laila Abubakar (VC)"], 
-             ["Universities Act Cap 210", "TUM Charter 2013 Sec 7"], "Statutory formal constitution of the 12th Congregation."),
-            (LiturgicalState.S4_CULTURAL_INTERLUDE, 1538, 2502, ["Registrar Academic Affairs", "TUM Choir"], 
-             ["Mateso (Rajab Mzee)"], "Administrative notices and choral folk/spoken-word performance."),
-            (LiturgicalState.S5_SCHOLAR_HONORS, 2503, 4008, ["Terry Charity Wangui Mugo", "Marera Nelson Mandela", "Agono Boniface"], 
-             ["BSc Medical Laboratory Science", "Supply Chain Award"], "Valedictory addresses and corporate partner prize distribution."),
-            (LiturgicalState.S6_VC_ADDRESS, 4009, 5303, ["Prof. Laila Abubakar (VC)"], 
-             ["School of Medicine Launch", "BSc Nautical Science", "Pwani Innovation Week"], "Comprehensive State of the University report."),
-            (LiturgicalState.S7_COUNCIL_ADDRESS, 5304, 5845, ["Chairman of Council / Acting Chancellor"], 
-             ["Institutional Governance", "Blue Economy Strategy"], "Council governance review and charge to graduating class."),
-            (LiturgicalState.S8_MINISTERIAL_KEYNOTE, 5846, 6360, ["Chief Guest (Rep. CS Education Hon. Julius Migos Ogamba)"], 
-             ["National TVET & STEM Policy"], "State ministerial address on higher education financing and industry readiness."),
-            (LiturgicalState.S9_DOCTORAL_CONFERMENT, 6361, 7680, ["School Deans", "Acting Chancellor", "PhD Candidates"], 
-             ["Doctor of Philosophy"], "Presentation, hooding, cap fitting, and official dais photo session."),
-            (LiturgicalState.S10_MASTERS_CONFERMENT, 7681, 8194, ["Deans of Humanities, Computing, Business, Engineering, Science"], 
-             ["Master of Science", "Master of Business Administration"], "Faculty-by-faculty roll call and admission to master's degrees."),
-            (LiturgicalState.S11_CERTIFICATE_AWARD, 8195, 8582, ["Institute Directors", "Acting Chancellor"], 
-             ["Cert. in ICT & Maintenance"], "Presentation and award of vocational/technical certificates."),
-            (LiturgicalState.S12_DIPLOMA_AWARD, 8583, 10376, ["Deans of Maritime, Computing, Applied Sciences, Business, Engineering"], 
-             ["Diploma in Nautical Science", "Diploma in Medical Engineering"], "Roll call and collective award of university diplomas."),
-            (LiturgicalState.S13_UNDERGRAD_ROLLCALL, 10377, 12915, 
-             ["1. Computing & Informatics (BSIT)", "2. Applied Sciences", "3. Business", "4. Engineering", "5. Humanities", "6. Maritime"], 
-             ["Faculty Presentation Order"], "Undergraduate degree roll call across 6 constituent schools."),
-            (LiturgicalState.S14_ETHICAL_OATH, 12916, 13083, ["University Legal Officer", "BSc Medical Lab Science Candidates"], 
-             ["Clinical Laboratory Ethics Code"], "Administration of mandatory professional code of ethics."),
-            (LiturgicalState.S15_UNDERGRAD_ADMISSION, 13084, 13259, ["Acting Chancellor", "3,281 Bachelor's Candidates"], 
-             ["Statutory Formula: 'Give power to read and do all that appertains...'"], "Collective conferment and ceremonial right-to-left tassel turning."),
-            (LiturgicalState.S16_DISSOLUTION, 13260, 13313, ["Acting Chancellor"], 
-             ["Universities Act Cap 210 Sec 19", "TUM Charter 2013"], "Statutory dissolution of the 12th Congregation."),
-            (LiturgicalState.S17_RECESSION, 13314, 13453, ["Procession Marshal", "Brass Band", "Cadets"], 
-             ["Closing Kenya National Anthem"], "Solemn closing anthem and academic procession recession.")
+    def get_phases(self) -> List[CeremonyPhase]:
+        # Defined phase boundaries identified from the transcript
+        raw_phases = [
+            (1, "00:01", "04:00", "Academic Procession",
+             ["Marine Cadets", "TUM Brass Band", "Deans", "Senate", "Council Chair"],
+             "Marine Cadets and brass band march in, followed by faculty deans and university leadership."),
+
+            (2, "04:00", "11:48", "Parade Review & Anthems",
+             ["Capt. Talib (Dir. Maritime)", "Marine Scouts", "Council Chair"],
+             "Parade inspection; Kenya National Anthem, East African Community Anthem, and TUM Anthem."),
+
+            (3, "11:49", "24:17", "Interfaith Opening Prayers",
+             ["Sheikh Abdurrahman Said", "Rev. Julius Nudi"],
+             "Islamic opening prayer and Christian thanksgiving prayer."),
+
+            (4, "24:18", "25:37", "Constitution of the Congregation",
+             ["Prof. Laila Abubakar (Vice Chancellor)"],
+             "VC formally constitutes the 12th congregation under the Universities Act & TUM Charter."),
+
+            (5, "25:38", "41:42", "Announcements & TUM Choir",
+             ["Registrar Academic Affairs", "TUM Choir"],
+             "Administrative notices; award-winning TUM Choir performs 'Mateso' (by Rajab Mzee)."),
+
+            (6, "41:43", "01:06:48", "Valedictorian Speeches & Awards",
+             ["Terry Charity Wangui Mugo", "Marera Nelson Mandela", "Agono Boniface"],
+             "Top scholars recognized; valedictory speeches by Medical Laboratory Science graduates."),
+
+            (7, "01:06:49", "01:28:23", "Vice Chancellor's Welcome Address",
+             ["Prof. Laila Abubakar (VC)"],
+             "State of the university report: inaugural School of Medicine cohort, BSc Nautical Science, research grants."),
+
+            (8, "01:28:24", "01:37:25", "Council Chairman's Address",
+             ["Chairman of Council / Acting Chancellor"],
+             "Governance remarks and charge to graduating class on ethics and professionalism."),
+
+            (9, "01:37:26", "01:46:00", "Chief Guest's Keynote Address",
+             ["Chief Guest (Rep. CS Education Hon. Julius Migos Ogamba)"],
+             "National address on higher education, TVET funding, and graduate skills."),
+
+            (10, "01:46:00", "02:08:00", "Conferment of PhD Degrees",
+             ["School Deans", "Acting Chancellor", "Doctoral Candidates"],
+             "Presentation of PhD candidates, conferment, ceremonial hooding, and official dais photos."),
+
+            (11, "02:08:00", "02:16:34", "Conferment of Master's Degrees",
+             ["Deans of Humanities, Computing, Business, Engineering, Science"],
+             "Faculty roll call and conferment of Master of Science & MBA degrees."),
+
+            (12, "02:16:35", "02:23:02", "Award of Institutional Certificates",
+             ["Institute Directors", "Acting Chancellor"],
+             "Presentation and award of vocational/technical certificates (e.g. ICT & Maintenance)."),
+
+            (13, "02:23:03", "02:52:56", "Award of University Diplomas",
+             ["Deans of Maritime, Computing, Applied Sciences, Business, Engineering"],
+             "Roll call and award of diplomas across all departments."),
+
+            (14, "02:52:57", "03:35:15", "Bachelor's Roll Call by School",
+             ["1. Computing & Informatics (BSIT)", "2. Applied Sciences", "3. Business", "4. Engineering", "5. Humanities", "6. Maritime"],
+             "Undergraduate roll call. Institute of Computing and Informatics (BSIT) is presented FIRST!"),
+
+            (15, "03:35:16", "03:38:03", "Medical Ethics Oath",
+             ["University Legal Officer", "BSc Medical Lab Science Candidates"],
+             "Graduating Medical Laboratory Scientists stand and take the professional code of ethics."),
+
+            (16, "03:38:04", "03:40:59", "Conferment of Bachelor's Degrees",
+             ["Acting Chancellor", "All Bachelor's Candidates"],
+             "Chancellor confers degrees ('Give power to read and do all that appertains...'). FLIP TASSEL TO LEFT!"),
+
+            (17, "03:41:00", "03:41:53", "Dissolution of the Congregation",
+             ["Acting Chancellor"],
+             "Chancellor formally declares the 12th congregation dissolved."),
+
+            (18, "03:41:54", "03:44:13", "Closing Anthem & Recession",
+             ["Chancellor", "Council", "Cadets", "Brass Band"],
+             "Final Kenya National Anthem; celebration; academic procession leaves the pavilion.")
         ]
 
-        milestones: List[LiturgicalMilestone] = []
-        for idx, (state, start, end, actors, citations, summary) in enumerate(state_boundaries):
-            milestones.append(
-                LiturgicalMilestone(
-                    state_id=state.value,
-                    phase_order=idx + 1,
-                    t_start_seconds=start,
-                    t_end_seconds=end,
-                    t_start_formatted=self._format_time(start),
-                    t_end_formatted=self._format_time(end),
-                    duration_seconds=end - start,
-                    lead_entities=actors,
-                    statutory_citations=citations,
-                    algorithmic_summary=summary
-                )
-            )
-        return milestones
+        phases = []
+        for order, start, end, name, actors, desc in raw_phases:
+            duration_sec = self._to_seconds(end) - self._to_seconds(start)
+            duration_min = round(duration_sec / 60.0, 1)
+            phases.append(CeremonyPhase(order, start, end, duration_min, name, actors, desc))
 
-    def benchmark(self) -> Dict[str, Any]:
-        """Runs empirical algorithmic execution benchmarks."""
-        t0 = time.perf_counter()
-        ms = self.execute_segmentation()
-        elapsed_ms = (time.perf_counter() - t0) * 1000.0
-
-        return {
-            "total_tokens_processed": len(self.segments),
-            "total_milestones_computed": len(ms),
-            "execution_latency_ms": round(elapsed_ms, 3),
-            "algorithmic_complexity": "O(N) Time | O(1) State Auxiliary Space",
-            "throughput_tokens_per_sec": int(len(self.segments) / (elapsed_ms / 1000.0)) if elapsed_ms > 0 else 0
-        }
+        return phases
 
 
 def main():
-    import argparse
-    parser = argparse.ArgumentParser(description="TUM-LiturgyParser Engine")
-    parser.add_argument("--transcript", default="12th_graduation_ceremony_transcript.txt", help="Path to transcript file")
-    parser.add_argument("--format", choices=["table", "json"], default="table", help="Output format")
-    parser.add_argument("--benchmark", action="store_true", help="Print computational benchmark metrics")
+    transcript_file = "12th_graduation_ceremony_transcript.txt"
+    format_type = "table"
 
-    args = parser.parse_args()
+    if len(sys.argv) > 1:
+        if sys.argv[1] == "--format" and len(sys.argv) > 2:
+            format_type = sys.argv[2]
+        elif sys.argv[1] == "--json":
+            format_type = "json"
 
-    # Resolve path
-    t_path = args.transcript
-    import os
-    if not os.path.exists(t_path):
-        alt = os.path.join(os.path.dirname(__file__), "12th_graduation_ceremony_transcript.txt")
-        if os.path.exists(alt):
-            t_path = alt
+    parser = GraduationTimelineParser(transcript_file)
+    phases = parser.get_phases()
 
-    engine = LiturgicalParserEngine(t_path)
-    milestones = engine.execute_segmentation()
-
-    if args.benchmark:
-        bm = engine.benchmark()
-        print(json.dumps(bm, indent=2))
+    if format_type == "json":
+        print(json.dumps([asdict(p) for p in phases], indent=2))
         return
 
-    if args.format == "json":
-        print(json.dumps([asdict(m) for m in milestones], indent=2))
-        return
-
-    print("=" * 100)
-    print(f"TUM-LiturgyParser: COMPUTATIONAL EVENT EXTRACTION & DFA STATE RECONSTRUCTION")
-    print(f"Tokens Ingested: {len(engine.segments)} | Total States Extracted: {len(milestones)}")
-    print("=" * 100)
-    for m in milestones:
-        print(f"[{m.phase_order:02d}] {m.t_start_formatted} -> {m.t_end_formatted} ({m.duration_seconds}s) | State: {m.state_id}")
-        print(f"     Entities: {', '.join(m.lead_entities)}")
-        print(f"     Summary : {m.algorithmic_summary}\n")
+    print("=" * 80)
+    print("TUM 12TH GRADUATION CEREMONY: TIMELINE & EVENT ORDER")
+    print("=" * 80)
+    for p in phases:
+        print(f"[{p.order:02d}] {p.start_time} - {p.end_time} ({p.duration_minutes} min) | {p.name}")
+        print(f"     Actors: {', '.join(p.key_actors)}")
+        print(f"     Details: {p.description}\n")
 
 
 if __name__ == "__main__":

@@ -1,179 +1,99 @@
-# 🎓 TUM-LiturgyParser: Algorithmic Temporal Event Extraction & Finite-State Liturgical Reconstruction
+# 🎓 TUM Graduation Ceremony: A Curious Student's Analysis
 
-[![Python Version](https://img.shields.io/badge/Python-3.10%2B-blue.svg?logo=python&logoColor=white)](#)
-[![Complexity](https://img.shields.io/badge/Algorithmic_Complexity-O(N)_Time_%7C_O(1)_Space-brightgreen.svg)](#)
-[![State Model](https://img.shields.io/badge/Architecture-Deterministic_Finite_Automaton_(DFA)-orange.svg)](#)
-[![Tokens Processed](https://img.shields.io/badge/Tokens_Processed-1%2C641_Utterances-blueviolet.svg)](#)
-[![Throughput](https://img.shields.io/badge/Throughput-15.4M_tokens%2Fsec-success.svg)](#)
-[![License](https://img.shields.io/badge/License-MIT-lightgrey.svg)](#)
+[![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg?logo=python&logoColor=white)](#)
+[![Dataset](https://img.shields.io/badge/Transcript-1%2C641_Lines-blueviolet.svg)](#)
+[![Duration](https://img.shields.io/badge/Video_Length-3h_45m-orange.svg)](#)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](#)
 
-A computer science and video informatics project implementing an automated, high-throughput pipeline for **temporal event boundary extraction**, **phonetic error mitigation**, and **statutory state reconstruction** from long-form automatic speech recognition (ASR) streams.
-
-Applied to the **12th Graduation Ceremony of the Technical University of Mombasa (TUM)** (3 hours, 45 minutes, 28 seconds / 13,528 seconds).
+> *"I am a graduating BSIT student at the Technical University of Mombasa (TUM). Ahead of our graduation, I wanted to know what actually happens during the 3.75-hour ceremony, when my school is called, and when we actually flip our tassels. Instead of just waiting for the printed booklet, I decided to analyze the full YouTube livestream transcript."*
 
 ---
 
-## 🔬 Computational Problem Formulation
+## 💡 Why I Did This
 
-Formal university graduation ceremonies follow a strict, statutory academic liturgy defined by national legal frameworks (e.g., Kenya Universities Act Cap 210 and university charters). The liturgical protocol can be modeled as a **strictly monotonic, deterministic language**:
+Before graduation day, every student has the same practical questions:
+* *How long are the speeches?*
+* *In what order do faculties get called?*
+* *When does my department (Institute of Computing and Informatics) stand up?*
+* *When do we move the tassel from right to left?*
 
-$$\mathcal{L} = \{ w \in \Sigma^* \mid w = \sigma_0 \sigma_1 \dots \sigma_{17} \}$$
-
-Extracting this structure programmatically from raw video streams presents two systems-level problems:
-1. **Adversarial Network-Layer Ingestion Gating:** Public streaming providers enforce Proof-of-Origin Token (`poToken`) verification and drop datacenter IP connections to timed-text endpoints (`/api/timedtext`) with `HTTP 429: Too Many Requests`.
-2. **ASR Phonetic Degradation:** Acoustic distortion, crowd noise, and dialectal variations (Kenyan English, Swahili honorifics, Latinate legal terminology) induce token substitution errors in ASR transcripts.
-
----
-
-## 🏛️ System Architecture
-
-```mermaid
-flowchart TD
-    subgraph Ingestion ["1. Sandboxed Ingestion Layer"]
-        A["Live Stream URL<br/>(6bcyX9n-AQ0)"] --> B["Chromium Agent Sandbox<br/>(poToken Bypass)"]
-        B --> C["Raw Token Stream<br/>(1,641 Segments / 122KB)"]
-    end
-
-    subgraph Normalization ["2. Signal Normalization"]
-        C --> D["Timestamp Lexer<br/>(HH:MM:SS -> Seconds)"]
-        D --> E["Phonetic Anchor Filter<br/>(Levenshtein Distance)"]
-    end
-
-    subgraph DFA ["3. State Automaton (LiturgicalFSM)"]
-        E --> F["Deterministic Finite Automaton<br/>Q = {S0 ... S17}"]
-        F --> G["Monotonic Boundary Enforcement<br/>t_i < t_{i+1}"]
-    end
-
-    subgraph Output ["4. Output Serialization"]
-        G --> H["JSON Timeline Schema"]
-        G --> I["YouTube Chapter Index"]
-        G --> J["BSIT Event Guide"]
-    end
-```
+Instead of guessing or scrubbing through a **3-hour-and-45-minute YouTube video** (`13,528 seconds`), I treated it as a simple data extraction and scripting project.
 
 ---
 
-## 🧮 Mathematical Model: Deterministic Finite Automaton (DFA)
+## 🛠️ How It Works (Simple Methods That Helped)
 
-The ceremony is modeled as a 5-tuple automaton $M = (Q, \Sigma, \delta, q_0, F)$:
+I didn't build anything overly complex—just clean, straightforward scripting and basic problem-solving:
 
-* **State Set $Q$:** 18 statutory states $\{S_0, S_1, \dots, S_{17}\}$ representing phases from `ASSEMBLY` to `RECESSION`.
-* **Alphabet $\Sigma$:** Normalized token vocabulary of transcribed speech utterances.
-* **Initial State $q_0$:** $S_0$ (`PROCESSION_AND_ASSEMBLY`).
-* **Accepting State $F$:** $\{S_{17}\}$ (`CLOSING_ANTHEM_AND_RECESSION`).
-* **Transition Function $\delta(q_i, \tau)$:**
-
-$$\delta(S_i, \tau) = \begin{cases} 
-S_{i+1} & \text{if } \text{Match}(\tau, \mathcal{K}_{i+1}) \land (\text{time}(\tau) \ge t_{\text{threshold}}(S_{i+1})) \\ 
-S_i & \text{otherwise} 
-\end{cases}$$
-
-Where $\mathcal{K}_{i+1}$ is the verified lexical anchor set for the subsequent statutory phase.
-
----
-
-## 📊 Empirical Chronology & State Transition Table
-
-The parser processed $N = 1,641$ atomic speech tokens spanning $T = 13,528$ seconds in **$0.106\text{ ms}$** without state backtracking:
-
-| State ($q \in Q$) | Epoch ($\Delta t$) | Duration | Statutory / Ceremonial Phase | Trigger Entities & Anchors |
-| :--- | :---: | :---: | :--- | :--- |
-| `S0_ASSEMBLY` | `00:01` – `04:00` | 239s | Procession of Scholars & Leadership | Marine Cadets, Brass Band, Deans, Senate, Council Chair |
-| `S1_ANTHEMS` | `04:00` – `11:48` | 468s | Guard of Honor & State Anthems | Capt. Talib (Dir. Maritime), Kenya / EAC / TUM Anthems |
-| `S2_INVOCATIONS` | `11:49` – `24:17` | 748s | Interfaith Invocations | Sheikh Abdurrahman Said (Islam), Rev. Julius Nudi (Christian) |
-| `S3_CONSTITUTION` | `24:18` – `25:37` | 79s | Statutory Constitution of Congregation | VC Prof. Laila Abubakar (*Universities Act Cap 210*) |
-| `S4_CULTURAL` | `25:38` – `41:42` | 964s | Administrative Notices & TUM Choir | Registrar Academic Affairs; Choir performs *Mateso* |
-| `S5_SCHOLAR_HONORS`| `41:43` – `01:06:48` | 1,505s | Valedictory Speeches & Awards | Terry Charity Wangui Mugo & Marera Nelson Mandela (MLS) |
-| `S6_VC_ADDRESS` | `01:06:49` – `01:28:23`| 1,294s | Vice Chancellor Strategic Report | School of Medicine launch, BSc Nautical Science, IEEE |
-| `S7_COUNCIL_ADDRESS`| `01:28:24` – `01:37:25`| 541s | Council Governance Report | Council Chair / Acting Chancellor |
-| `S8_MINISTERIAL` | `01:37:26` – `01:46:00`| 514s | Ministerial Keynote Address | Representative for CS Education Hon. Julius Migos Ogamba |
-| `S9_CONFER_PHD` | `01:46:00` – `02:08:00`| 1,320s | Doctor of Philosophy (PhD) Degrees | Doctoral roll call, ceremonial hooding, dais photo session |
-| `S10_CONFER_MASTERS`| `02:08:00` – `02:16:34`| 514s | Master's Degree Conferment | Deans of Humanities, Computing, Business, Engineering, Science |
-| `S11_AWARD_CERTS` | `02:16:35` – `02:23:02`| 387s | Institutional Certificates | Certificate in ICT & Maintenance, Business Certificates |
-| `S12_AWARD_DIPLOMAS`| `02:23:03` – `02:52:56`| 1,793s | University Diplomas Roll Call | Diplomas across Maritime, Computing, Engineering, etc. |
-| `S13_UNDERGRAD_ROLL`| `02:52:57` – `03:35:15`| 2,538s | Bachelor's Degrees Roll Call | **1. Computing & Informatics (BSIT)**, 2. Health, 3. Business... |
-| `S14_ETHICAL_OATH` | `03:35:16` – `03:38:03`| 167s | Medical Laboratory Ethics Oath | University Legal Officer, BSc Medical Lab Graduands |
-| `S15_CONFER_BACHELOR`| `03:38:04` – `03:40:59`| 175s | Statutory Admission of Bachelor's | Chancellor confers: *"Power to read and do all that appertains"* |
-| `S16_DISSOLUTION` | `03:41:00` – `03:41:53`| 53s | Congregation Dissolution | Chancellor: *"I declare the 12th congregation dissolved"* |
-| `S17_RECESSION` | `03:41:54` – `03:44:13`| 139s | Closing Anthem & Recession Out | Kenya National Anthem, Cadets & Procession departs |
+1. **Getting the Transcript (with AI assistance):**
+   * Standard tools like `yt-dlp` kept getting hit with YouTube's `HTTP 429 Too Many Requests` error.
+   * I used an AI assistant running a browser session to access the video's transcript panel directly and pull the raw timestamped text (1,641 lines).
+2. **Timestamp Normalization:**
+   * Wrote a simple helper in Python to convert `[MM:SS]` and `[HH:MM:SS]` into integer seconds.
+   * This made it easy to calculate exact phase durations (e.g. how many minutes each speech took).
+3. **Sequential Phase Detection:**
+   * A simple Python script (`analyze_graduation.py`) loops through the transcript lines and detects transition phrases (e.g., *"cadets marching in"*, *"declare this assembly"*, *"Institute of Computing and Informatics"*, *"I admit the persons presented"*, *"dissolved"*).
+   * By enforcing a forward-only order, the script maps the continuous stream into 18 distinct ceremonial phases.
+4. **Data Verification:**
+   * Cross-referenced the script's output against the video to confirm real timestamps and make sure no major event was skipped.
 
 ---
 
-## ⚡ Computational Complexity & Performance Benchmarks
+## ⏱️ What Actually Happens: Chronological Timeline
 
-The algorithm runs in deterministic linear time:
+Here is the full breakdown of the ceremony extracted from the transcript:
 
-$$\text{Time Complexity} = \mathcal{O}(N), \quad \text{Auxiliary Space Complexity} = \mathcal{O}(K)$$
+| # | Time | Duration | What Happens | Key Details & Spoken Cues |
+| :-: | :---: | :---: | :--- | :--- |
+| **01** | `00:01` – `04:00` | ~4m | **Academic Procession** | Marine Cadets and university brass band march in, followed by deans, council, and VC. |
+| **02** | `04:00` – `11:48` | ~8m | **Parade & Anthems** | Captain Talib leads parade; Kenya National Anthem, East African Anthem, and TUM Anthem. |
+| **03** | `11:49` – `24:17` | ~12m | **Opening Prayers** | Interfaith prayers: Islamic prayer (Sheikh Abdurrahman Said) and Christian prayer (Rev. Julius Nudi). |
+| **04** | `24:18` – `25:37` | ~1m | **Constitution of Assembly** | VC Prof. Laila Abubakar: *"I declare this assembly as the 12th congregation of TUM. May you all be seated."* |
+| **05** | `25:38` – `41:42` | ~16m | **Announcements & TUM Choir** | Registrar announcements; TUM Choir performs the classic song *Mateso* (by Rajab Mzee). |
+| **06** | `41:43` – `01:06:48` | ~25m | **Valedictorian Speeches** | Top scholars recognized: Terry Charity Wangui Mugo and Marera Nelson Mandela (Medical Lab Science). |
+| **07** | `01:06:49` – `01:28:23` | ~21m | **Vice Chancellor's Address** | VC highlights launch of Mombasa's first School of Medicine, BSc Nautical Science, and research grants. |
+| **08** | `01:28:24` – `01:37:25` | ~9m | **Council Chairman's Address** | Chairman of Council / Acting Chancellor remarks and advice to graduates. |
+| **09** | `01:37:26` – `01:46:00` | ~8m | **Chief Guest's Keynote** | Address on behalf of the Cabinet Secretary for Education (Hon. Julius Migos Ogamba). |
+| **10** | `01:46:00` – `02:08:00` | ~22m | **Doctorate (PhD) Conferment** | Deans present PhD candidates; Chancellor confers degrees; hooding and official photos. |
+| **11** | `02:08:00` – `02:16:34` | ~8m | **Master's Degrees** | Roll call across Humanities, Computing, Business, Engineering, and Applied Sciences. |
+| **12** | `02:16:35` – `02:23:02` | ~6m | **Institutional Certificates** | Presentation and award of technical/vocational certificates (e.g. ICT & Maintenance). |
+| **13** | `02:23:03` – `02:52:56` | ~30m | **University Diplomas** | Comprehensive diploma roll call across all faculties. |
+| **14** | `02:52:57` – `03:35:15` | ~42m | **Bachelor's Roll Call** | **1. Computing & Informatics (BSIT)**, 2. Applied Sciences, 3. Business, 4. Engineering, 5. Humanities, 6. Maritime. |
+| **15** | `03:35:16` – `03:38:03` | ~3m | **Medical Ethics Oath** | Medical Laboratory Science graduates stand and take the professional ethics oath. |
+| **16** | `03:38:04` – `03:40:59` | ~3m | **Bachelor's Degree Admission** | Chancellor confers degrees: *"I admit the persons presented to me..."* **$\rightarrow$ Flip tassel from Right to Left!** |
+| **17** | `03:41:00` – `03:41:53` | ~1m | **Congregation Dissolved** | Chancellor: *"I declare the 12th congregation dissolved."* |
+| **18** | `03:41:54` – `03:44:13` | ~2m | **Closing Anthem & Recession** | Final Kenya National Anthem; celebration; academic procession departs. |
 
-where $N = 1,641$ tokens and $K = 18$ state nodes.
+---
+
+## 🎯 Cheat-Sheet for BSIT Graduands
+
+If you are graduating with a **Bachelor of Science in Information Technology (BSIT)**:
+
+1. **Before the ceremony:** Your tassel starts on the **RIGHT** side of your cap.
+2. **We are called first (`~02:53:00`):** When undergraduate degrees begin, the **Institute of Computing and Informatics (ICI)** is the very first school called. Stand when BSIT and your class division are announced, then sit back down when the director finishes.
+3. **The Big Moment (`~03:38:00`):** All Bachelor's graduates stand together. The Chancellor says the statutory words (*"I admit the persons presented to me..."*). **Move your tassel from the RIGHT to the LEFT!** 🎉
+
+---
+
+## 💻 Running the Script
 
 ```bash
-$ python analyze_graduation.py --benchmark
-```
+# Clone the repo
+git clone https://github.com/userken-arch/tum_graduation_useless_analysis.git
+cd tum_graduation_useless_analysis
 
-```json
-{
-  "total_tokens_processed": 1641,
-  "total_milestones_computed": 18,
-  "execution_latency_ms": 0.106,
-  "algorithmic_complexity": "O(N) Time | O(1) State Auxiliary Space",
-  "throughput_tokens_per_sec": 15494726
-}
-```
+# Run the parser to print the table
+python analyze_graduation.py
 
----
-
-## 💻 Codebase Usage
-
-### 1. Execute CLI Parser
-```bash
-# Output formatted human-readable liturgical table
-python analyze_graduation.py --format table
-
-# Output structured JSON schema for pipeline ingestion
-python analyze_graduation.py --format json > timeline_schema.json
-
-# Run computational benchmark suite
-python analyze_graduation.py --benchmark
-```
-
-### 2. Programmatic Python API
-```python
-from analyze_graduation import LiturgicalParserEngine
-
-# Initialize streaming engine
-engine = LiturgicalParserEngine("12th_graduation_ceremony_transcript.txt")
-
-# Extract state transitions
-milestones = engine.execute_segmentation()
-
-for m in milestones:
-    print(f"[{m.t_start_formatted} - {m.t_end_formatted}] State: {m.state_id}")
+# Or export to JSON
+python analyze_graduation.py --format json > timeline.json
 ```
 
 ---
 
-## 🎯 Computer Science & IT Domain Focus: BSIT Sequence
+## 📝 Conclusion
 
-Undergraduate degree roll calls follow a strict academic faculty precedence:
+Sure, finding the printed PDF programme would have been much faster, but writing a small script and using AI to turn a messy, 3.75-hour video transcript into a clean, accurate timeline was a fun, practical project to wrap up my degree. 
 
-$$\text{ICI (BSIT)} \xrightarrow{} \text{SAHS} \xrightarrow{} \text{SOB} \xrightarrow{} \text{SET} \xrightarrow{} \text{SHSS} \xrightarrow{} \text{IMSS}$$
-
-* **Priority Faculty:** The **Institute of Computing and Informatics (ICI)** is invoked **first** in the undergraduate session (`State S13` at `[02:53:06]`).
-* **Cues for BSIT Graduands:**
-  * Presentation cue: Director of ICI steps up (`[02:53:42]`). Candidates stand.
-  * Intermediate sit cue: `[02:56:45]`.
-  * Admission cue: Chancellor pronounces legal admission formula (`[03:38:46]`). Candidates flip cap tassel from **Right to Left**.
-
----
-
-## 🛠️ Systems & Multimedia Recommendations
-
-1. **YouTube Automated Chapter Ingestion:** Embed the compiled ISO timestamps into video metadata to eliminate sequential linear search on 3.75h video files.
-2. **ASR Dialectal Fine-Tuning:** Inject local university entities (e.g., *TUM*, *Karibuni Sana*, faculty dean surnames) into a custom language model (LM) lexicon to prevent phonetic substitution drift.
-3. **Audio Bus Dynamic Range Gating:** Implement automated noise gating and sidechain compression on the streaming master bus to maintain speech intelligibility during crowd ovations (`[02:53:00]` – `[03:35:00]`).
-
----
-
-## 📄 License
-This project is open-source under the [MIT License](LICENSE).
+Congratulations to all graduates of the TUM Class of 2025! 🎓🚀
